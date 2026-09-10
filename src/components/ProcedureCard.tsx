@@ -27,16 +27,16 @@ export const ProcedureCard: React.FC<ProcedureCardProps> = ({
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
           {procedure.popular && (
-            <span className="inline-flex items-center gap-1 text-[10px] uppercase font-semibold tracking-wider px-2 py-0.5 rounded-full bg-[#d6be96]/20 text-[#ebd8b7] border border-[#d6be96]/40 mb-1.5">
+            <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-[#d6be96]/20 text-[#ebd8b7] border border-[#d6be96]/50 mb-2">
               <Sparkles className="w-3 h-3 text-[#d6be96]" />
               Procedimento em Alta
             </span>
           )}
-          <h3 className="font-serif-luxury text-xl sm:text-2xl font-semibold text-[#f5f1eb] leading-tight">
+          <h3 className="font-serif-luxury text-xl sm:text-2xl font-bold text-[#ffffff] leading-tight tracking-tight">
             {procedure.name}
           </h3>
           {procedure.subtitle && (
-            <p className="text-xs font-medium text-[#cbb387] tracking-wider uppercase mt-0.5">
+            <p className="text-xs font-semibold text-[#d6be96] tracking-wider uppercase mt-1">
               {procedure.subtitle}
             </p>
           )}
@@ -44,29 +44,29 @@ export const ProcedureCard: React.FC<ProcedureCardProps> = ({
 
         {/* Radio/Check selector */}
         <div
-          className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all ${
+          className={`w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all ${
             isSelected
-              ? 'bg-[#d6be96] border-[#d6be96] text-[#172119]'
+              ? 'bg-[#d6be96] border-[#d6be96] text-[#121a14] shadow-md'
               : 'border-[#4e6452] bg-[#1a251c]'
           }`}
         >
-          {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+          {isSelected && <Check className="w-4 h-4 stroke-[3]" />}
         </div>
       </div>
 
       {/* Description */}
-      <p className="text-sm text-[#b8c6bb] line-clamp-3 mb-4 leading-relaxed font-light">
+      <p className="text-sm text-[#dce7de] mb-4 leading-relaxed font-normal">
         {procedure.description}
       </p>
 
       {/* Footer Info: Duration & Price note */}
-      <div className="pt-3 border-t border-[#344537] flex items-center justify-between text-xs text-[#a0b0a3]">
-        <div className="flex items-center gap-1.5">
-          <Clock className="w-3.5 h-3.5 text-[#cbb387]" />
+      <div className="pt-3 border-t border-[#344537] flex items-center justify-between text-xs text-[#b5c7b8]">
+        <div className="flex items-center gap-1.5 font-medium">
+          <Clock className="w-4 h-4 text-[#d6be96]" />
           <span>Aprox. {procedure.durationMinutes} minutos</span>
         </div>
         {procedure.priceEstimate && (
-          <span className="text-[#ebd8b7] font-medium text-[11px]">
+          <span className="text-[#ebd8b7] font-bold text-xs">
             {procedure.priceEstimate}
           </span>
         )}

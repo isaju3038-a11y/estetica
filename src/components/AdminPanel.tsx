@@ -29,6 +29,7 @@ import {
   Send,
 } from 'lucide-react';
 import { SUPABASE_SCHEMA_SQL, getSupabaseClient } from '../lib/supabase';
+import { generateInitialSlots, formatDateKey } from '../data/defaultData';
 
 interface AdminPanelProps {
   slots: TimeSlot[];
@@ -61,8 +62,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   >('calendar');
 
   // Calendar slot creator state
-  const todayStr = new Date().toISOString().split('T')[0];
-  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(todayStr);
+  const todayStr = useMemo(() => formatDateKey(new Date()), []);
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(() => formatDateKey(new Date()));
   const [newSlotTime, setNewSlotTime] = useState<string>('09:00');
   const [isAddingSlot, setIsAddingSlot] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<string>('');
@@ -170,6 +171,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const updated = [...slots, ...newSlots];
     await onSaveSlots(updated);
     showFeedback(`${newSlots.length} horários criados para ${targetDate}!`);
+  };
+
+  // Handler: Batch generate / refill slots for the next 30 days
+  const handleBatchGenerateMonth = async () => {
+    const generated = generateInitialSlots();
+    const existingBooked = slots.filter((s) => !s.isAvailable || s.bookedByAppointmentId);
+    const merged = [
+      ...existingBooked,
+      ...generated.filter(
+        (g) => !existingBooked.some((e) => e.date === g.date && e.time === g.time)
+      ),
+    ];
+    await onSaveSlots(merged);
+    showFeedback('Grade oficial de horários para os próximos 30 dias gerada com sucesso!');
   };
 
   // Handler: Toggle slot availability
@@ -357,16 +372,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </p>
               </div>
 
-              {/* Quick Batch action for the selected date */}
-              <button
-                type="button"
-                onClick={() => handleBatchGenerateDay(selectedCalendarDate)}
-                id="batch-generate-day-btn"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#283a2c] hover:bg-[#344b39] text-[#ebd8b7] text-xs font-semibold border border-[#405643] transition-all"
-              >
-                <Plus className="w-4 h-4 text-[#d6be96]" />
-                <span>Gerar Grade Completa para este Dia</span>
-              </button>
+              {/* Quick Batch actions */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleBatchGenerateMonth}
+                  id="batch-generate-month-btn"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#223325] hover:bg-[#2c4030] text-[#ebd8b7] text-xs font-semibold border border-[#3c533f] transition-all"
+                  title="Garante horários disponíveis para os próximos 30 dias no calendário dos clientes"
+                >
+                  <RefreshCw className="w-4 h-4 text-[#d6be96]" />
+                  <span>Renovar Grade dos Próximos 30 Dias</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleBatchGenerateDay(selectedCalendarDate)}
+                  id="batch-generate-day-btn"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#283a2c] hover:bg-[#344b39] text-[#ebd8b7] text-xs font-semibold border border-[#405643] transition-all"
+                >
+                  <Plus className="w-4 h-4 text-[#d6be96]" />
+                  <span>Gerar Grade para este Dia</span>
+                </button>
+              </div>
             </div>
 
             {/* Selector bar: Select Date + Add Slot Form */}

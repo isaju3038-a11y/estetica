@@ -2,21 +2,26 @@
 
 @layer base {
   :root {
-    --color-moss-900: #172119;
-    --color-moss-800: #1e2a20;
-    --color-moss-700: #253528;
-    --color-moss-600: #2e4132;
+    --color-moss-900: #121a14;
+    --color-moss-800: #17221a;
+    --color-moss-700: #202f23;
+    --color-moss-600: #2a3d2e;
     --color-gold-400: #dfc8a2;
     --color-gold-300: #ebd8b7;
     --color-cream-100: #fbf8f3;
   }
 
   body {
-    font-family: 'Montserrat', sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #f5f1eb;
+    letter-spacing: -0.01em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3, .font-serif-luxury {
-    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-family: 'Playfair Display', Georgia, serif;
+    letter-spacing: -0.015em;
   }
 }
 

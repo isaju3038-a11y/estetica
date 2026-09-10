@@ -103,7 +103,7 @@ export async function fetchSlots(): Promise<TimeSlot[]> {
         .select('*')
         .order('date', { ascending: true })
         .order('time', { ascending: true });
-      if (!error && data) {
+      if (!error && data && data.length > 0) {
         return data as TimeSlot[];
       }
     } catch (e) {
@@ -111,13 +111,30 @@ export async function fetchSlots(): Promise<TimeSlot[]> {
     }
   }
 
-  // Fallback to local
+  // Fallback to local storage
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.SLOTS);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed: TimeSlot[] = JSON.parse(raw);
+      // Ensure there are slots for today or future dates
+      const hasFutureSlots = parsed.some((s) => s.date >= todayStr && s.isAvailable);
+      if (hasFutureSlots) {
+        return parsed;
+      }
+      // If slots are outdated, merge with new initial slots
+      const initial = generateInitialSlots();
+      const existingBooked = parsed.filter((s) => !s.isAvailable);
+      const merged = [...existingBooked, ...initial.filter((init) => !existingBooked.some((ex) => ex.date === init.date && ex.time === init.time))];
+      localStorage.setItem(STORAGE_KEYS.SLOTS, JSON.stringify(merged));
+      return merged;
+    }
   } catch (e) {
     console.warn('Fallback local slots error:', e);
   }
+
   const initial = generateInitialSlots();
   localStorage.setItem(STORAGE_KEYS.SLOTS, JSON.stringify(initial));
   return initial;
@@ -169,24 +186,40 @@ export async function createAppointment(appointment: Appointment): Promise<boole
   const updated = [appointment, ...current];
   localStorage.setItem(STORAGE_KEYS.APPOINTMENTS, JSON.stringify(updated));
 
-  // Mark the slot as booked
+  // Mark the slot as booked or create it as booked
   const currentSlots = await fetchSlots();
+  let slotFound = false;
   const updatedSlots = currentSlots.map((slot) => {
     if (slot.date === appointment.date && slot.time === appointment.time) {
+      slotFound = true;
       return { ...slot, isAvailable: false, bookedByAppointmentId: appointment.id };
     }
     return slot;
   });
+
+  if (!slotFound) {
+    updatedSlots.push({
+      id: `slot_${appointment.date}_${appointment.time.replace(':', '')}`,
+      date: appointment.date,
+      time: appointment.time,
+      isAvailable: false,
+      bookedByAppointmentId: appointment.id,
+    });
+  }
+
   await saveSlots(updatedSlots);
 
   const client = getSupabaseClient();
   if (client) {
     try {
       await client.from('appointments').insert([appointment]);
-      await client
-        .from('available_slots')
-        .update({ isAvailable: false, bookedByAppointmentId: appointment.id })
-        .match({ date: appointment.date, time: appointment.time });
+      await client.from('available_slots').upsert({
+        id: `slot_${appointment.date}_${appointment.time.replace(':', '')}`,
+        date: appointment.date,
+        time: appointment.time,
+        isAvailable: false,
+        bookedByAppointmentId: appointment.id,
+      });
     } catch (e) {
       console.warn('Supabase createAppointment sync error:', e);
     }

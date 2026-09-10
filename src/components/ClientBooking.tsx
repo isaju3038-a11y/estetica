@@ -2,7 +2,9 @@ import React, { useState, useMemo } from 'react';
 import confetti from 'canvas-confetti';
 import { Procedure, TimeSlot, Appointment } from '../types';
 import { ProcedureCard } from './ProcedureCard';
+import { BookingCalendar } from './BookingCalendar';
 import { Logo } from './Logo';
+import { formatDateKey } from '../data/defaultData';
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -10,11 +12,11 @@ import {
   Phone,
   FileText,
   CheckCircle2,
-  CalendarCheck,
   Send,
   Sparkles,
   ArrowRight,
   Info,
+  Check,
 } from 'lucide-react';
 
 interface ClientBookingProps {
@@ -31,9 +33,20 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
   clinicInstagram,
 }) => {
   // Step tracking: 1: Procedure, 2: Date & Time, 3: Client info
-  const [selectedProcedure, setSelectedProcedure] = useState<Procedure | null>(procedures[0] || null);
-  const [selectedDate, setSelectedDate] = useState<string>('');
-  const [selectedTime, setSelectedTime] = useState<string>('');
+  const [selectedProcedure, setSelectedProcedure] = useState<Procedure | null>(
+    procedures[0] || null
+  );
+
+  // Initialize selectedDate with today or tomorrow (if today is Sunday)
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    const d = new Date();
+    if (d.getDay() === 0) {
+      d.setDate(d.getDate() + 1);
+    }
+    return formatDateKey(d);
+  });
+
+  const [selectedTime, setSelectedTime] = useState<string>('10:00');
 
   // Form fields
   const [clientName, setClientName] = useState<string>('');
@@ -44,48 +57,6 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmedBooking, setConfirmedBooking] = useState<Appointment | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
-
-  // Extract unique available dates from slots
-  const availableDates = useMemo(() => {
-    const datesMap = new Map<string, number>();
-    const todayStr = new Date().toISOString().split('T')[0];
-
-    slots.forEach((s) => {
-      // only future or today and available
-      if (s.isAvailable && s.date >= todayStr) {
-        datesMap.set(s.date, (datesMap.get(s.date) || 0) + 1);
-      }
-    });
-
-    return Array.from(datesMap.keys()).sort();
-  }, [slots]);
-
-  // Set default selected date once available dates are computed
-  React.useEffect(() => {
-    if (availableDates.length > 0 && (!selectedDate || !availableDates.includes(selectedDate))) {
-      setSelectedDate(availableDates[0]);
-    }
-  }, [availableDates, selectedDate]);
-
-  // Slots for the currently chosen date
-  const slotsForSelectedDate = useMemo(() => {
-    if (!selectedDate) return [];
-    return slots
-      .filter((s) => s.date === selectedDate && s.isAvailable)
-      .sort((a, b) => a.time.localeCompare(b.time));
-  }, [slots, selectedDate]);
-
-  // Reset selected time if date changes
-  React.useEffect(() => {
-    if (slotsForSelectedDate.length > 0) {
-      // Pick first slot by default if none selected or invalid
-      if (!selectedTime || !slotsForSelectedDate.some((s) => s.time === selectedTime)) {
-        setSelectedTime(slotsForSelectedDate[0].time);
-      }
-    } else {
-      setSelectedTime('');
-    }
-  }, [slotsForSelectedDate, selectedTime]);
 
   const formatDateDisplay = (dateStr: string): { weekday: string; dayNumber: string; monthName: string; full: string } => {
     if (!dateStr) return { weekday: '', dayNumber: '', monthName: '', full: '' };
@@ -127,8 +98,12 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
       setErrorMessage('Por favor, selecione um procedimento.');
       return;
     }
-    if (!selectedDate || !selectedTime) {
-      setErrorMessage('Por favor, selecione a data e o horário desejado.');
+    if (!selectedDate) {
+      setErrorMessage('Por favor, selecione um dia no calendário.');
+      return;
+    }
+    if (!selectedTime) {
+      setErrorMessage('Por favor, selecione um horário disponível.');
       return;
     }
     if (!clientName.trim()) {
@@ -136,7 +111,7 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
       return;
     }
     if (!clientPhone.trim() || clientPhone.replace(/\D/g, '').length < 10) {
-      setErrorMessage('Por favor, informe um número de telefone/WhatsApp válido.');
+      setErrorMessage('Por favor, informe um número de telefone/WhatsApp com DDD válido.');
       return;
     }
 
@@ -164,7 +139,7 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
             particleCount: 80,
             spread: 70,
             origin: { y: 0.6 },
-            colors: ['#cbb387', '#dfc8a2', '#4e6452', '#ffffff'],
+            colors: ['#d6be96', '#ebd8b7', '#4e6452', '#ffffff'],
           });
         } catch {
           // ignore confetti if unsupported
@@ -181,7 +156,7 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
   };
 
   const getWhatsAppShareLink = (apt: Appointment) => {
-    const cleanPhone = '5511999998888'; // Pode ser atualizado pelo proprietário
+    const cleanPhone = '5511999998888';
     const msg = encodeURIComponent(
       `Olá, Clínica Raya Estética (@rayaestética)! Acabei de agendar meu procedimento pelo site:\n\n` +
         `• Procedimento: *${apt.procedureName}*\n` +
@@ -200,47 +175,47 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
     const formatted = formatDateDisplay(confirmedBooking.date);
     return (
       <div className="max-w-2xl mx-auto py-12 px-4 sm:px-6">
-        <div className="bg-[#243328] border border-[#d6be96]/60 rounded-3xl p-8 sm:p-10 shadow-2xl text-center relative overflow-hidden">
+        <div className="bg-[#18241b] border-2 border-[#d6be96] rounded-3xl p-8 sm:p-10 shadow-2xl text-center relative overflow-hidden">
           {/* Subtle decorative glow */}
-          <div className="absolute top-0 right-0 w-48 h-48 bg-[#d6be96]/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute top-0 right-0 w-48 h-48 bg-[#d6be96]/15 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="w-16 h-16 bg-[#d6be96]/20 border border-[#d6be96] text-[#d6be96] rounded-full flex items-center justify-center mx-auto mb-5 shadow-lg">
+          <div className="w-16 h-16 bg-[#d6be96] text-[#121a14] rounded-full flex items-center justify-center mx-auto mb-5 shadow-lg font-black">
             <CheckCircle2 className="w-9 h-9 stroke-[2.5]" />
           </div>
 
-          <h2 className="font-serif-luxury text-3xl sm:text-4xl text-[#f5f1eb] font-medium mb-2">
-            Agendamento Solicitado com Sucesso!
+          <h2 className="font-serif-luxury text-3xl sm:text-4xl text-[#ffffff] font-bold mb-2">
+            Agendamento Confirmado!
           </h2>
-          <p className="text-sm sm:text-base text-[#c8d4cb] max-w-lg mx-auto mb-8">
-            Seu horário foi reservado exclusivamente no sistema da{' '}
-            <strong className="text-[#ebd8b7] font-semibold">Raya Estética</strong>.
+          <p className="text-sm sm:text-base text-[#d8e5da] max-w-lg mx-auto mb-8 font-normal">
+            Seu horário foi reservado com sucesso no sistema da{' '}
+            <strong className="text-[#ebd8b7] font-bold">Raya Estética</strong>.
           </p>
 
           {/* Booking Voucher / Ticket */}
-          <div className="bg-[#1b251d] border border-[#3b4c3e] rounded-2xl p-6 text-left mb-8 space-y-4">
-            <div className="flex items-center justify-between pb-4 border-b border-[#2e3e31]">
-              <span className="text-xs uppercase tracking-wider text-[#a0b0a3]">Procedimento</span>
-              <span className="font-serif-luxury text-xl font-semibold text-[#ebd8b7]">
+          <div className="bg-[#111a13] border border-[#344837] rounded-2xl p-6 text-left mb-8 space-y-4 shadow-inner">
+            <div className="flex items-center justify-between pb-4 border-b border-[#253628]">
+              <span className="text-xs uppercase tracking-wider text-[#a4b5a6] font-bold">Procedimento</span>
+              <span className="font-serif-luxury text-xl sm:text-2xl font-bold text-[#ebd8b7]">
                 {confirmedBooking.procedureName}
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 pb-4 border-b border-[#2e3e31]">
+            <div className="grid grid-cols-2 gap-4 pb-4 border-b border-[#253628]">
               <div>
-                <span className="text-xs uppercase tracking-wider text-[#a0b0a3] block mb-1">
+                <span className="text-xs uppercase tracking-wider text-[#a4b5a6] font-bold block mb-1">
                   Data
                 </span>
-                <span className="text-base font-medium text-[#f5f1eb] flex items-center gap-1.5">
-                  <CalendarIcon className="w-4 h-4 text-[#cbb387]" />
+                <span className="text-base font-bold text-[#ffffff] flex items-center gap-1.5">
+                  <CalendarIcon className="w-4 h-4 text-[#d6be96]" />
                   {formatted.dayNumber} {formatted.monthName} ({formatted.weekday})
                 </span>
               </div>
               <div>
-                <span className="text-xs uppercase tracking-wider text-[#a0b0a3] block mb-1">
+                <span className="text-xs uppercase tracking-wider text-[#a4b5a6] font-bold block mb-1">
                   Horário
                 </span>
-                <span className="text-base font-medium text-[#f5f1eb] flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-[#cbb387]" />
+                <span className="text-base font-bold text-[#ffffff] flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-[#d6be96]" />
                   {confirmedBooking.time}
                 </span>
               </div>
@@ -248,22 +223,33 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <span className="text-xs uppercase tracking-wider text-[#a0b0a3] block mb-1">
-                  Cliente
+                <span className="text-xs uppercase tracking-wider text-[#a4b5a6] font-bold block mb-1">
+                  Paciente
                 </span>
-                <span className="text-sm font-medium text-[#f5f1eb]">
+                <span className="text-sm font-bold text-[#ffffff]">
                   {confirmedBooking.clientName}
                 </span>
               </div>
               <div>
-                <span className="text-xs uppercase tracking-wider text-[#a0b0a3] block mb-1">
+                <span className="text-xs uppercase tracking-wider text-[#a4b5a6] font-bold block mb-1">
                   WhatsApp
                 </span>
-                <span className="text-sm font-medium text-[#f5f1eb]">
+                <span className="text-sm font-bold text-[#ffffff]">
                   {confirmedBooking.clientPhone}
                 </span>
               </div>
             </div>
+
+            {confirmedBooking.notes && (
+              <div className="pt-3 border-t border-[#253628]">
+                <span className="text-xs uppercase tracking-wider text-[#a4b5a6] font-bold block mb-1">
+                  Observações
+                </span>
+                <span className="text-xs text-[#c8d8cb]">
+                  {confirmedBooking.notes}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Actions */}
@@ -273,10 +259,10 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
               target="_blank"
               rel="noopener noreferrer"
               id="whatsapp-confirm-booking-btn"
-              className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-[#25d366] hover:bg-[#20b858] text-white font-medium shadow-lg transition-all"
+              className="inline-flex items-center justify-center gap-2 px-7 py-4 rounded-xl bg-[#25d366] hover:bg-[#20b858] text-[#ffffff] font-extrabold shadow-lg transition-all text-sm tracking-wide"
             >
               <Send className="w-4 h-4" />
-              <span>Enviar via WhatsApp</span>
+              <span>Enviar Confirmação no WhatsApp</span>
             </a>
 
             <button
@@ -286,19 +272,19 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
                 setClientPhone('');
                 setNotes('');
               }}
-              className="inline-flex items-center justify-center px-6 py-3.5 rounded-xl bg-[#2a3a2d] hover:bg-[#324536] text-[#ebd8b7] font-medium border border-[#435747] transition-all"
+              className="inline-flex items-center justify-center px-6 py-4 rounded-xl bg-[#223325] hover:bg-[#2c4030] text-[#ebd8b7] font-bold border border-[#3e5541] transition-all text-sm"
             >
-              Fazer Novo Agendamento
+              Fazer Outro Agendamento
             </button>
           </div>
 
-          <p className="text-xs text-[#8e9e92] mt-6">
-            Acompanhe nossos resultados no Instagram{' '}
+          <p className="text-xs text-[#9bb09e] mt-6">
+            Acompanhe nossas novidades no Instagram{' '}
             <a
               href="https://instagram.com/rayaestetica"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#cbb387] underline hover:text-white"
+              className="text-[#d6be96] underline font-bold hover:text-white"
             >
               {clinicInstagram}
             </a>
@@ -315,34 +301,34 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
         <div className="flex justify-center mb-5">
           <Logo variant="mark-only" size="lg" />
         </div>
-        <p className="text-xs sm:text-sm font-medium tracking-[0.3em] uppercase text-[#cbb387] mb-2">
+        <p className="text-xs sm:text-sm font-bold tracking-[0.25em] uppercase text-[#d6be96] mb-2">
           Agendamento de Consultas & Procedimentos
         </p>
-        <h1 className="font-serif-luxury text-3xl sm:text-5xl lg:text-6xl font-normal text-[#f4eee6] tracking-[0.06em] max-w-3xl mx-auto leading-tight">
+        <h1 className="font-serif-luxury text-3xl sm:text-5xl lg:text-6xl font-bold text-[#ffffff] tracking-tight max-w-3xl mx-auto leading-tight">
           Realce sua beleza com precisão, elegância e naturalidade.
         </h1>
-        <p className="text-sm sm:text-base text-[#b8c6bb] max-w-xl mx-auto mt-4 font-light leading-relaxed">
+        <p className="text-sm sm:text-base text-[#d8e5da] max-w-xl mx-auto mt-4 font-normal leading-relaxed">
           Selecione o procedimento estético desejado e reserve seu dia e horário disponível no calendário oficial da clínica.
         </p>
       </div>
 
       {/* Main Booking Stepper Flow */}
-      <form onSubmit={handleSubmitBooking} className="space-y-12">
+      <form onSubmit={handleSubmitBooking} className="space-y-10">
         {/* STEP 1: Select Procedure */}
-        <section id="section-procedures" className="bg-[#1a251c]/80 border border-[#2b3a2d] rounded-3xl p-6 sm:p-8">
-          <div className="flex items-center justify-between mb-6">
+        <section id="section-procedures" className="bg-[#18241b] border border-[#2b3c2e] rounded-3xl p-6 sm:p-8 shadow-xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6 pb-4 border-b border-[#253628]">
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-widest text-[#cbb387] block mb-1">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-[#d6be96] block mb-1">
                 Passo 1 de 3
               </span>
-              <h2 className="font-serif-luxury text-2xl sm:text-3xl text-[#f5f1eb] font-medium">
+              <h2 className="font-serif-luxury text-2xl sm:text-3xl text-[#ffffff] font-bold">
                 Escolha o Procedimento
               </h2>
             </div>
             {selectedProcedure && (
-              <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full bg-[#2a3b2d] text-[#ebd8b7] border border-[#405444]">
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3.5 py-1.5 rounded-full bg-[#223325] text-[#ebd8b7] border border-[#3b523e]">
                 <Sparkles className="w-3.5 h-3.5 text-[#d6be96]" />
-                Selecionado: {selectedProcedure.name}
+                Selecionado: <span className="text-[#ffffff]">{selectedProcedure.name}</span>
               </span>
             )}
           </div>
@@ -359,127 +345,57 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
           </div>
         </section>
 
-        {/* STEP 2: Select Date & Available Time Slot */}
-        <section id="section-datetime" className="bg-[#1a251c]/80 border border-[#2b3a2d] rounded-3xl p-6 sm:p-8">
-          <div className="mb-6">
-            <span className="text-[11px] font-semibold uppercase tracking-widest text-[#cbb387] block mb-1">
+        {/* STEP 2: Real Calendar & Available Time Slots */}
+        <section id="section-datetime" className="bg-[#18241b] border border-[#2b3c2e] rounded-3xl p-6 sm:p-8 shadow-xl">
+          <div className="mb-6 pb-4 border-b border-[#253628]">
+            <span className="text-[11px] font-bold uppercase tracking-widest text-[#d6be96] block mb-1">
               Passo 2 de 3
             </span>
-            <h2 className="font-serif-luxury text-2xl sm:text-3xl text-[#f5f1eb] font-medium">
-              Data e Horário Disponíveis
+            <h2 className="font-serif-luxury text-2xl sm:text-3xl text-[#ffffff] font-bold">
+              Calendário & Horários Disponíveis
             </h2>
-            <p className="text-xs sm:text-sm text-[#9fad9f] mt-1">
-              Horários disponibilizados e atualizados diretamente pelo proprietário da clínica.
+            <p className="text-xs sm:text-sm text-[#c8d8cb] mt-1 font-normal">
+              Selecione o dia desejado no calendário real abaixo para visualizar os horários vagos e garantir sua vaga.
             </p>
           </div>
 
-          {availableDates.length === 0 ? (
-            <div className="p-6 rounded-2xl bg-[#233125] border border-[#3b4c3e] text-center text-[#b8c6bb]">
-              <CalendarIcon className="w-8 h-8 text-[#cbb387] mx-auto mb-2 opacity-80" />
-              <p className="text-sm font-medium text-[#f5f1eb]">
-                Nenhum horário aberto no momento.
-              </p>
-              <p className="text-xs text-[#a0b0a3] mt-1">
-                O proprietário da clínica está atualizando a grade de horários. Você também pode nos contatar pelo Instagram{' '}
-                <a
-                  href="https://instagram.com/rayaestetica"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#cbb387] underline font-medium"
-                >
-                  {clinicInstagram}
-                </a>
-                .
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {/* Date Selector Pills */}
-              <div>
-                <label className="block text-xs font-medium uppercase tracking-wider text-[#cbb387] mb-3">
-                  1. Selecione o dia:
-                </label>
-                <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-thin">
-                  {availableDates.map((dateStr) => {
-                    const info = formatDateDisplay(dateStr);
-                    const isSelected = selectedDate === dateStr;
-                    return (
-                      <button
-                        key={dateStr}
-                        type="button"
-                        id={`date-pill-${dateStr}`}
-                        onClick={() => setSelectedDate(dateStr)}
-                        className={`shrink-0 flex flex-col items-center justify-center min-w-[76px] px-3 py-3 rounded-2xl border transition-all ${
-                          isSelected
-                            ? 'bg-[#d6be96] text-[#172119] border-[#d6be96] shadow-md font-semibold'
-                            : 'bg-[#212e23] text-[#cfdcd1] border-[#37493a] hover:bg-[#28372b] hover:border-[#4d6351]'
-                        }`}
-                      >
-                        <span className="text-[10px] uppercase tracking-wider font-semibold opacity-80">
-                          {info.weekday}
-                        </span>
-                        <span className="text-xl font-serif-luxury font-bold my-0.5">
-                          {info.dayNumber}
-                        </span>
-                        <span className="text-[10px] uppercase tracking-wider opacity-80">
-                          {info.monthName}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Time Slots Grid for the selected date */}
-              <div>
-                <label className="block text-xs font-medium uppercase tracking-wider text-[#cbb387] mb-3">
-                  2. Escolha o horário vago ({slotsForSelectedDate.length} disponíveis neste dia):
-                </label>
-
-                {slotsForSelectedDate.length === 0 ? (
-                  <p className="text-xs text-[#a0b0a3] italic">
-                    Não há horários restantes para a data selecionada. Escolha outro dia acima.
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5">
-                    {slotsForSelectedDate.map((slot) => {
-                      const isSelected = selectedTime === slot.time;
-                      return (
-                        <button
-                          key={slot.id}
-                          type="button"
-                          id={`time-slot-${slot.time.replace(':', '')}`}
-                          onClick={() => setSelectedTime(slot.time)}
-                          className={`py-3 px-2 rounded-xl text-center border font-medium text-sm transition-all flex items-center justify-center gap-1.5 ${
-                            isSelected
-                              ? 'bg-[#d6be96] text-[#172119] border-[#d6be96] shadow-md font-bold ring-2 ring-[#d6be96]/40'
-                              : 'bg-[#223024] text-[#e3ece4] border-[#364939] hover:bg-[#2b3d2e] hover:border-[#506754]'
-                          }`}
-                        >
-                          <Clock className={`w-3.5 h-3.5 ${isSelected ? 'text-[#172119]' : 'text-[#cbb387]'}`} />
-                          <span>{slot.time}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          <BookingCalendar
+            selectedDate={selectedDate}
+            selectedTime={selectedTime}
+            slots={slots}
+            onSelectDate={(date) => setSelectedDate(date)}
+            onSelectTime={(time) => setSelectedTime(time)}
+          />
         </section>
 
-        {/* STEP 3: Client Details */}
-        <section id="section-client-info" className="bg-[#1a251c]/80 border border-[#2b3a2d] rounded-3xl p-6 sm:p-8">
-          <div className="mb-6">
-            <span className="text-[11px] font-semibold uppercase tracking-widest text-[#cbb387] block mb-1">
+        {/* STEP 3: Client Details & Submission */}
+        <section id="section-client-info" className="bg-[#18241b] border border-[#2b3c2e] rounded-3xl p-6 sm:p-8 shadow-xl">
+          <div className="mb-6 pb-4 border-b border-[#253628]">
+            <span className="text-[11px] font-bold uppercase tracking-widest text-[#d6be96] block mb-1">
               Passo 3 de 3
             </span>
-            <h2 className="font-serif-luxury text-2xl sm:text-3xl text-[#f5f1eb] font-medium">
+            <h2 className="font-serif-luxury text-2xl sm:text-3xl text-[#ffffff] font-bold">
               Dados do Paciente
             </h2>
-            <p className="text-xs sm:text-sm text-[#9fad9f] mt-1">
+            <p className="text-xs sm:text-sm text-[#c8d8cb] mt-1 font-normal">
               Informe seus dados de contato para confirmação da reserva pela equipe da clínica.
             </p>
+          </div>
+
+          {/* Quick confirmation recap chip */}
+          <div className="mb-6 p-4 rounded-2xl bg-[#131d15] border border-[#2a3c2d] flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-[#a0b2a3]">Procedimento:</span>
+              <span className="font-bold text-[#ebd8b7]">{selectedProcedure?.name || 'Não selecionado'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[#a0b2a3]">Data:</span>
+              <span className="font-bold text-[#ffffff]">{selectedDate || 'Não selecionada'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[#a0b2a3]">Horário:</span>
+              <span className="font-bold text-[#d6be96]">{selectedTime || 'Não selecionado'}</span>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -487,7 +403,7 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
             <div>
               <label
                 htmlFor="client-name-input"
-                className="block text-xs font-medium uppercase tracking-wider text-[#ebd8b7] mb-1.5"
+                className="block text-xs font-bold uppercase tracking-wider text-[#ebd8b7] mb-1.5"
               >
                 Nome Completo <span className="text-red-400">*</span>
               </label>
@@ -500,7 +416,7 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
                   placeholder="Ex: Maria Clara Silva"
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#212f24] border border-[#384c3b] text-[#f5f1eb] placeholder-[#6d7f71] focus:outline-none focus:border-[#d6be96] focus:ring-1 focus:ring-[#d6be96] transition-colors text-sm"
+                  className="w-full pl-10 pr-4 py-3.5 rounded-xl bg-[#131d15] border border-[#344837] text-[#ffffff] font-medium placeholder-[#6a7c6e] focus:outline-none focus:border-[#d6be96] focus:ring-1 focus:ring-[#d6be96] transition-colors text-sm"
                 />
               </div>
             </div>
@@ -509,9 +425,9 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
             <div>
               <label
                 htmlFor="client-phone-input"
-                className="block text-xs font-medium uppercase tracking-wider text-[#ebd8b7] mb-1.5"
+                className="block text-xs font-bold uppercase tracking-wider text-[#ebd8b7] mb-1.5"
               >
-                WhatsApp / Telefone <span className="text-red-400">*</span>
+                WhatsApp / Telefone com DDD <span className="text-red-400">*</span>
               </label>
               <div className="relative">
                 <Phone className="w-4 h-4 text-[#8a9d8e] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -522,16 +438,16 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
                   placeholder="(11) 98765-4321"
                   value={clientPhone}
                   onChange={handlePhoneChange}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#212f24] border border-[#384c3b] text-[#f5f1eb] placeholder-[#6d7f71] focus:outline-none focus:border-[#d6be96] focus:ring-1 focus:ring-[#d6be96] transition-colors text-sm"
+                  className="w-full pl-10 pr-4 py-3.5 rounded-xl bg-[#131d15] border border-[#344837] text-[#ffffff] font-medium placeholder-[#6a7c6e] focus:outline-none focus:border-[#d6be96] focus:ring-1 focus:ring-[#d6be96] transition-colors text-sm"
                 />
               </div>
             </div>
 
-            {/* Observações / Queixas / Informações adicionais */}
+            {/* Observações / Queixas */}
             <div className="sm:col-span-2">
               <label
                 htmlFor="client-notes-input"
-                className="block text-xs font-medium uppercase tracking-wider text-[#ebd8b7] mb-1.5"
+                className="block text-xs font-bold uppercase tracking-wider text-[#ebd8b7] mb-1.5"
               >
                 Observações ou Dúvidas (Opcional)
               </label>
@@ -540,44 +456,44 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
                 <textarea
                   id="client-notes-input"
                   rows={2}
-                  placeholder="Tem alguma dúvida ou já fez algum procedimento anterior?"
+                  placeholder="Tem alguma dúvida ou já realizou algum procedimento anterior?"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#212f24] border border-[#384c3b] text-[#f5f1eb] placeholder-[#6d7f71] focus:outline-none focus:border-[#d6be96] focus:ring-1 focus:ring-[#d6be96] transition-colors text-sm resize-none"
+                  className="w-full pl-10 pr-4 py-3.5 rounded-xl bg-[#131d15] border border-[#344837] text-[#ffffff] font-medium placeholder-[#6a7c6e] focus:outline-none focus:border-[#d6be96] focus:ring-1 focus:ring-[#d6be96] transition-colors text-sm resize-none"
                 />
               </div>
             </div>
           </div>
 
           {errorMessage && (
-            <div className="mt-4 p-3 rounded-xl bg-red-900/40 border border-red-700/60 text-red-200 text-xs flex items-center gap-2">
+            <div className="mt-4 p-3.5 rounded-xl bg-red-950/80 border border-red-700/80 text-red-200 text-xs font-medium flex items-center gap-2">
               <Info className="w-4 h-4 text-red-400 shrink-0" />
               <span>{errorMessage}</span>
             </div>
           )}
 
           {/* Submit Action Card */}
-          <div className="mt-8 pt-6 border-t border-[#2e3e31] flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="mt-8 pt-6 border-t border-[#253628] flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-xs text-[#a3b3a6] text-center sm:text-left">
-              Ao agendar, seu horário é reservado diretamente na agenda da{' '}
-              <strong className="text-[#ebd8b7]">Raya Estética</strong>.
+              Ao confirmar, seu horário é reservado imediatamente na agenda da{' '}
+              <strong className="text-[#ebd8b7] font-bold">Raya Estética</strong>.
             </div>
 
             <button
               type="submit"
               id="submit-booking-button"
               disabled={isSubmitting || !selectedProcedure || !selectedDate || !selectedTime}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl bg-[#d6be96] hover:bg-[#e4d2b2] text-[#172119] font-bold shadow-xl hover:shadow-2xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm uppercase tracking-wider"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-9 py-4 rounded-xl bg-[#d6be96] hover:bg-[#ebd8b7] text-[#121a14] font-extrabold shadow-xl hover:shadow-2xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm uppercase tracking-wider"
             >
               {isSubmitting ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-[#172119] border-t-transparent rounded-full animate-spin" />
-                  <span>Reservando...</span>
+                  <div className="w-4 h-4 border-2 border-[#121a14] border-t-transparent rounded-full animate-spin" />
+                  <span>Reservando Horário...</span>
                 </>
               ) : (
                 <>
-                  <span>Garantir Meu Horário</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <span>Confirmar Agendamento</span>
+                  <ArrowRight className="w-4 h-4 stroke-[2.5]" />
                 </>
               )}
             </button>
@@ -587,3 +503,4 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
     </div>
   );
 };
+

@@ -47,19 +47,40 @@ export const DEFAULT_SETTINGS: ClinicSettings = {
   supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
 };
 
-// Generate realistic starting slots for today and the next 7 days
+// Standard clinic hours for Raya Estética
+export const STANDARD_CLINIC_HOURS = [
+  '09:00',
+  '10:00',
+  '11:00',
+  '11:30',
+  '13:30',
+  '14:30',
+  '15:30',
+  '16:30',
+  '17:30',
+  '18:30',
+];
+
+export function formatDateKey(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// Generate realistic starting slots for today and the next 30 days
 export function generateInitialSlots(): TimeSlot[] {
   const slots: TimeSlot[] = [];
-  const times = ['09:00', '10:30', '14:00', '15:30', '17:00'];
+  const times = ['09:00', '10:00', '11:00', '13:30', '14:30', '15:30', '16:30', '17:30'];
   const today = new Date();
 
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < 35; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
     // skip sundays (0)
     if (d.getDay() === 0) continue;
 
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = formatDateKey(d);
     times.forEach((time) => {
       slots.push({
         id: `slot_${dateStr}_${time.replace(':', '')}`,
