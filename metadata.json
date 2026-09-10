@@ -1,0 +1,6 @@
+{
+  "name": "Raya Estética",
+  "description": "Aplicativo e agendamento online da Clínica Raya Estética (@rayaestética) com painel de gerenciamento para o proprietário.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
